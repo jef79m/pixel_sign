@@ -1,0 +1,21 @@
+<html>\
+    <head>\
+        <title>Pixel Web Sign Thing!</title>\
+    </head>\
+    <body>\
+        <h3>Current Message:</h3>\
+        <p>%s</p>\
+        <form action=\"\">\
+            <input type=\"text\" name=\"message\">\
+            <select name=\"colorstyle\">\
+                <option value=\"0\">One Color (set below)</option>\
+                <option value=\"1\">Random</option>\
+                <option value=\"1\">Cycle</option>\
+            </select><br>\
+            <label for=\"repeat\">Repeat x times (0 for infinite):</label><input type=\"number\" name=\"repeat\" value=\"3\"><br>\
+            <label for=\"colour\">Colour: </label><input type=\"color\" name=\"colour\" value=\"#FF8833\"><br>\
+            <label for=\"speed\">Fast</label> <input type=\"range\" name=\"speed\" min=\"0\" max=\"200\"> <label for=\"speed\">Slow</label><br>\
+            <input type=\"submit\">\
+        </form>\
+    </body>\
+</html>

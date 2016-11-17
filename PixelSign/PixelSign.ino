@@ -52,32 +52,50 @@ const uint16_t colors[] = {
   matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255) };
   
 
-// config for webserver
+// config for wifi 
 const char *ssid = "";
 const char *password = "";
 // 60:01:94:06:61:a3 
 
-char message[] = "Welcome, dirtbags!";
+char message[] = "                                                                                                                       ";
 int message_length = sizeof(message)/sizeof(char);
-int x    = matrix.width();
-int pass = 0;
+int repeat_times = 3;
 int frame_delay = 100;
+enum color_style {fixed = 0, rando = 1, cycle = 2};
+byte cycle_idx = 1;
+int style = rando;
+uint16_t t_color = colors[0];
+int x = matrix.width();
+int pass = 0;
 int prev_frame = millis();
 
 ESP8266WebServer server ( 80 );
 
 const int led = 13;
 
-void handleRoot() {
-	digitalWrite ( led, 1 );
-	char temp[400];
+void handleText() {
+  digitalWrite ( led, 1 );
+  char temp[400];
   message_length = server.arg("message").length();
+  repeat_times = server.arg("repeat").toInt();
+  frame_delay = server.arg("speed").toInt();
+  style = server.arg("colorstyle").toInt();
+  String t_str = server.arg("colour");
+  t_str.toCharArray(temp, 7);
+  t_color = (uint16_t) strtol( &temp[1], NULL, 16);
+  pass = 0;
+  matrix.setTextColor(t_color);
   String Smessage = urldecode(server.arg("message"));
-  Serial.println ( Smessage );
   Smessage.toCharArray(message, message_length + 1);
   x = matrix.width();
-	snprintf ( temp, 400,
+  server.sendHeader("Location", String("/"), true);
+  server.send ( 302, "text/plain", "");
+}
 
+void handleRoot() {
+	digitalWrite ( led, 1 );
+	char temp[1024];
+  snprintf ( temp, 1024,
 "<html>\
     <head>\
         <title>Pixel Web Sign Thing!</title>\
@@ -85,8 +103,16 @@ void handleRoot() {
     <body>\
         <h3>Current Message:</h3>\
         <p>%s</p>\
-        <form action=\"\">\
+        <form action=\"/text\">\
             <input type=\"text\" name=\"message\">\
+            <select name=\"colorstyle\">\
+                <option value=\"0\">One Color (set below)</option>\
+                <option value=\"1\">Random</option>\
+                <option value=\"2\">Cycle</option>\
+            </select><br>\
+            <label for=\"repeat\">Repeat x times (0 for infinite):</label><input type=\"number\" name=\"repeat\" value=\"3\"><br>\
+            <label for=\"colour\">Colour: </label><input type=\"color\" name=\"colour\" value=\"#FF8833\"><br>\
+            <label for=\"speed\">Fast</label> <input type=\"range\" name=\"speed\" min=\"10\" max=\"200\"> <label for=\"speed\">Slow</label><br>\
             <input type=\"submit\">\
         </form>\
     </body>\
@@ -100,20 +126,20 @@ void handleRoot() {
 
 void handleNotFound() {
 	digitalWrite ( led, 1 );
-	String message = "File Not Found\n\n";
-	message += "URI: ";
-	message += server.uri();
-	message += "\nMethod: ";
-	message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
-	message += "\nArguments: ";
-	message += server.args();
-	message += "\n";
+	String content = "File Not Found\n\n";
+	content += "URI: ";
+	content += server.uri();
+	content += "\nMethod: ";
+	content += ( server.method() == HTTP_GET ) ? "GET" : "POST";
+	content += "\nArguments: ";
+	content += server.args();
+	content += "\n";
 
 	for ( uint8_t i = 0; i < server.args(); i++ ) {
-		message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
+		content += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
 	}
 
-	server.send ( 404, "text/plain", message );
+	server.send ( 404, "text/plain", content );
 	digitalWrite ( led, 0 );
 }
 
@@ -141,6 +167,7 @@ void setup ( void ) {
 	}
 
 	server.on ( "/", handleRoot );
+  server.on ( "/text", handleText );
 	server.onNotFound ( handleNotFound );
 	server.begin();
 	Serial.println ( "HTTP server started" );
@@ -148,8 +175,9 @@ void setup ( void ) {
  // setup matrix
   matrix.begin();
   matrix.setTextWrap(false);
-  matrix.setBrightness(40);
+  matrix.setBrightness(80);
   matrix.setTextColor(colors[0]);
+  message_length = snprintf(message, message_length, "%i.%i.%i.%i\0", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
 }
 
 void loop ( void ) {
@@ -157,16 +185,19 @@ void loop ( void ) {
   int curtime = millis();
   if (curtime > prev_frame + frame_delay) {
     prev_frame = curtime;
-    matrix.fillScreen(0);
-    matrix.setCursor(x, 2);
-    matrix.print(message);
+    if (style == cycle) matrix.setTextColor(Wheel(++cycle_idx));
     if(--x < (message_length * -6)) {
       x = matrix.width();
-      if(++pass >= 3) pass = 0;
-      matrix.setTextColor(colors[pass]);
+      if (style == rando) matrix.setTextColor(colors[pass % 3]);
+      if (++pass >= repeat_times && repeat_times > 0) {
+        strcpy(message, "\0");
+      }
     }
-    matrix.show();
   }
+  matrix.fillScreen(0);
+  matrix.setCursor(x, 2);
+  matrix.print(message);
+  matrix.show();
 }
 
 String urldecode(String str)
@@ -210,4 +241,25 @@ unsigned char h2int(char c)
         return((unsigned char)c - 'A' + 10);
     }
     return(0);
+}
+
+// Takes a HTML color code #FFFFFF and returns a color.
+uint32_t color_from_hex(String hexstr)
+{
+  
+}
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return matrix.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return matrix.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return matrix.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
