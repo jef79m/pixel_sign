@@ -42,6 +42,8 @@
 
 #define PIN 4 //PIN D2 on NodeMCU - connected to ws2812 strand.
 
+typedef void (*func)();
+
 // Config for matrix.
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(10, 10, PIN,
   NEO_MATRIX_BOTTOM     + NEO_MATRIX_RIGHT +
@@ -58,6 +60,7 @@ const char *password = "";
 // 60:01:94:06:61:a3 
 
 char message[] = "                                                                                                                       ";
+uint32_t image[100] = {};
 int message_length = sizeof(message)/sizeof(char);
 int repeat_times = 3;
 int frame_delay = 100;
@@ -68,6 +71,7 @@ uint16_t t_color = colors[0];
 int x = matrix.width();
 int pass = 0;
 int prev_frame = millis();
+func doMatrixUpdate;
 
 ESP8266WebServer server ( 80 );
 
@@ -76,6 +80,7 @@ const int led = 13;
 void handleText() {
   digitalWrite ( led, 1 );
   char temp[400];
+  doMatrixUpdate = doTextUpdate;
   message_length = server.arg("message").length();
   repeat_times = server.arg("repeat").toInt();
   frame_delay = server.arg("speed").toInt();
@@ -90,6 +95,72 @@ void handleText() {
   x = matrix.width();
   server.sendHeader("Location", String("/"), true);
   server.send ( 302, "text/plain", "");
+  digitalWrite ( led, 0 );
+}
+
+void doTextUpdate() {
+  int curtime = millis();
+  if (curtime > prev_frame + frame_delay) {
+    prev_frame = curtime;
+    if(--x < (message_length * -6)) {
+      x = matrix.width();
+      if (style == rando) matrix.setTextColor(colors[pass % 3]);
+      if (++pass >= repeat_times && repeat_times > 0) {
+        strcpy(message, "\0");
+      }
+    }
+  }
+  if (style == cycle && curtime > prev_frame + 10) matrix.setTextColor(Wheel(++cycle_idx));
+  matrix.fillScreen(0);
+  matrix.setCursor(x, 2);
+  matrix.print(message);
+  matrix.show();
+}
+
+void doBlankScreen() {
+  matrix.fillScreen(0);
+  matrix.show();
+}
+
+
+void handleImage() {
+  char temp[1024];
+  digitalWrite ( led, 1 );
+  doMatrixUpdate = doImageUpdate;
+  server.arg("data").toCharArray(temp, server.arg("data").length());
+  repeat_times = server.arg("duration").toInt();
+  int i = 0;
+  char* sep = strchr(temp, '#');
+  while ( sep != 0 ) {
+    char hexcolor[7]; // 6 chars plus terminator
+    memcpy(hexcolor, sep + 1, 6);
+    hexcolor[6] = 0;
+    image[i] = (uint32_t) strtol( hexcolor, NULL, 16);
+    sep = strchr(sep + 1, '#');
+    i++;
+  }
+  pass = 0;
+  frame_delay = 1000;
+  server.send ( 200, "text/html", "Ok");
+  digitalWrite ( led, 0 );
+}
+
+void doImageUpdate() {
+  int curtime = millis();
+  if (curtime > prev_frame + frame_delay || pass == 0) {
+    if ( pass == 0) {
+      matrix.fillScreen(0);
+      for (int i = 0; i < 100; i++) {
+        matrix.setPixelColor(i, image[i]);  
+      }
+      matrix.show();
+    } else if (pass > repeat_times && repeat_times != 0) {
+        matrix.fillScreen(0);
+        matrix.show();
+    }
+    prev_frame = millis();    
+    pass++;
+  }
 }
 
 void handleRoot() {
@@ -168,6 +239,7 @@ void setup ( void ) {
 
 	server.on ( "/", handleRoot );
   server.on ( "/text", handleText );
+  server.on ( "/image", handleImage );
 	server.onNotFound ( handleNotFound );
 	server.begin();
 	Serial.println ( "HTTP server started" );
@@ -178,26 +250,12 @@ void setup ( void ) {
   matrix.setBrightness(80);
   matrix.setTextColor(colors[0]);
   message_length = snprintf(message, message_length, "%i.%i.%i.%i\0", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
+  doMatrixUpdate = doTextUpdate;
 }
 
 void loop ( void ) {
 	server.handleClient();
-  int curtime = millis();
-  if (curtime > prev_frame + frame_delay) {
-    prev_frame = curtime;
-    if (style == cycle) matrix.setTextColor(Wheel(++cycle_idx));
-    if(--x < (message_length * -6)) {
-      x = matrix.width();
-      if (style == rando) matrix.setTextColor(colors[pass % 3]);
-      if (++pass >= repeat_times && repeat_times > 0) {
-        strcpy(message, "\0");
-      }
-    }
-  }
-  matrix.fillScreen(0);
-  matrix.setCursor(x, 2);
-  matrix.print(message);
-  matrix.show();
+  doMatrixUpdate();
 }
 
 String urldecode(String str)
@@ -243,11 +301,6 @@ unsigned char h2int(char c)
     return(0);
 }
 
-// Takes a HTML color code #FFFFFF and returns a color.
-uint32_t color_from_hex(String hexstr)
-{
-  
-}
 
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
