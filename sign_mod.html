@@ -1,0 +1,177 @@
+<html>
+	<head>
+		<!-- Latest compiled and minified CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+		<!-- jQuery -->
+		<script   src="https://code.jquery.com/jquery-1.12.4.js" integrity="sha256-Qw82+bXyGq6MydymqBxNPYTaUXXq7c8v3CwiYwLLNXU="   crossorigin="anonymous"></script>
+		<!-- Latest compiled and minified JavaScript -->
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+		<title>Template</title>
+		<style>
+			.swatchCell {
+				height: 50px;
+			    width: 50px;
+			    display: inline-block;
+				border: 1px solid black;
+			}
+			.cell {
+			    height: 50px;
+			    width: 50px;
+			    display: inline-block;
+			    border: 1px solid black;
+			}
+			.red {
+				background-color: red;
+			}
+			.green {
+				background-color: green;
+			}
+			.blue {
+				background-color: blue;
+			}
+			.white {
+				background-color: white;
+			}
+			.black {
+				background-color: black;
+			}
+
+			.aqua {
+				background-color: #00ffff;
+			}
+
+			.yellow {
+				background-color: #ffff00;
+			}
+
+			.purple {
+				background-color: #ff00ff;
+			}
+
+			.selected {
+				box-shadow: 0px 0px 8px blue;
+			}
+
+		</style>
+	</head>
+	<body>
+		<div class="container text-center">
+			<br>
+			<div class="swatch text-center">
+				<div id='#ff0000' data-color="red" class='swatchCell red'></div>
+				<div id='#00ff00' data-color="green" class='swatchCell green'></div>
+				<div id='#0000ff' data-color="blue" class='swatchCell blue'></div>
+				<div id='#ffffff' data-color="white" class='swatchCell white'></div>
+				<div id='#000000' data-color="black" class='swatchCell black'></div>
+				<div id='#00ffff' data-color="aqua" class='swatchCell aqua'></div>
+				<div id='#ffff00' data-color="yellow" class='swatchCell yellow'></div>
+				<div id='#ff00ff' data-color="purple" class='swatchCell purple'></div>
+			</div>
+			<div class="row">
+
+			</div>
+			<div class="panel">
+
+			</div>
+
+		    <div class="row form-group">
+		    	<label for="duration" class="col-xs-2 col-xs-offset-5 control-label">Duration (Seconds)</label>
+
+			    <div class="col-xs-2 col-xs-offset-5">
+			    	<input type="number" class="form-control" id="duration" value="10" placeholder="Seconds">
+			    </div>
+			</div>
+			<button id="btnSave" type="button" class="btn btn-default">Send!</button>
+                        <button id="randomAnim" type="button" class="btn btn-default">Random animation!</button>
+		</div>
+
+		<script type="text/javascript">
+			var glopCount = 100,
+				colour = "black",
+				intColour = "#000000",
+				cells = Array(100).fill("#000000");
+			for(cnt = 1; cnt <= 5; cnt++){
+
+				glopCount -= 10
+				for(innerCnt = 0; innerCnt <= 9; innerCnt++){
+					var cellHTML = "<div id='" + (glopCount + innerCnt) + "' class='cell black'></div>"
+					$(".panel").append(cellHTML);
+				}
+				$(".panel").append("<br>");
+				for(innerCnt = 1; innerCnt <= 10; innerCnt++){
+					glopCount -= 1;
+					var cellHTML = "<div id='" + glopCount + "' class='cell black'></div>"
+					$(".panel").append(cellHTML);
+				}
+				$(".panel").append("<br>");
+			}
+			$(".swatchCell").click(function(){
+				colour = $(this).attr("data-color");
+				$(".swatchCell").removeClass('selected');
+				$(this).addClass('selected');
+				intColour = $(this).attr("id");
+			});
+
+			$(".cell").mousedown(function(e){
+			    e.preventDefault();
+			    $(this).css("background-color", colour);
+			    cells[parseInt($(this).attr("id"))] = intColour;
+			    $(".cell").mouseenter(function(e){
+				e.preventDefault();
+				$(this).css("background-color", colour);
+				cells[parseInt($(this).attr("id"))] = intColour;
+			    });
+			});
+			    $(document).mouseup(function(e){
+			        $(".cell").unbind('mouseenter');
+			    });
+			$("#btnSave").click(function(){
+				var THE_DATA_YOU_NEED = JSON.stringify(cells),
+					duration = parseInt($("#duration").val());
+
+				console.log(THE_DATA_YOU_NEED);
+
+				url = "http://10.0.0.165/image"; // WHAT IS THE URL???
+
+				$.ajax({
+					url: url,
+					dataType: 'json',
+					data: {"data": THE_DATA_YOU_NEED,
+						   "duration": duration},
+					success:function(json){
+						//alert("Success");
+					},
+					error:function(xhr){
+						//alert(xhr.status);
+					}
+				});
+			});
+			$("#randomAnim").click(function(){
+			    var arrayColour = ['red', 'green', 'blue', 'white', 'aqua', 'yellow', 'purple'];
+                            var arrayHex = ['#ff0000', '#00ff00', '#0000ff', '#ffffff', '#00ffff', '#ffff00', '#ff00ff']
+		                setInterval(function(){
+				    $('div.cell').each( function(){
+                                        var rand = Math.floor(Math.random() * arrayColour.length);
+					var colour = arrayColour[rand];
+					var hex = arrayHex[rand];
+					$(this).css('background-color', colour);
+					cells[parseInt($(this).attr("id"))] = hex;
+		                    });
+				    $("#btnSave").click();
+				}, 500);
+			});
+
+
+		</script>
+	</body>
+
+
+</html>
+
+
+
+
+
+
+
+
