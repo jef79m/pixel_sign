@@ -1,0 +1,60 @@
+<html>
+    <head>
+        <title>Pixel Web Sign Thing!</title>
+<script
+  src="https://code.jquery.com/jquery-1.12.4.min.js"
+  integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+  crossorigin="anonymous"></script>
+<script>
+function degToCompass(num){
+    var val=parseInt((num/22.5)+0.5);
+    var arr=["N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+    return arr[(val % 16)]
+}
+function showtemp(){
+	$.get( "http://api.openweathermap.org/data/2.5/weather?zip=2303,au&appid=f9bd40cd523caeab1a93e3c116826867&units=metric", function( data ) {
+	    var datetime = new Date();
+            var temp_string = "Current weather: "+ data.main.temp + "c  " + data.weather[0].description 
+            + "   Humidity: " + data.main.humidity+"perc   Wind: " + (data.wind.speed * 3.6).toFixed(1) 
+            +"kmh "+degToCompass(data.wind.deg) +"   Last Updated at " + datetime.toLocaleTimeString().substr(0,5) + "    ";
+	    $('#message').val(temp_string);
+	    if (data.main.temp < 20){
+              // cool=blue
+              $('#colour').val('#0000ff');
+            }else if (data.main.temp >= 20 && data.main.temp < 26){
+              // warmish=yellow
+              $('#colour').val('#ffff00');
+            }else if (data.main.temp >= 26 && data.main.temp < 30){
+              // warmer=orange
+              $('#colour').val('#ff8833');
+            }else{
+              // HOT!=red
+              $('#colour').val('#ff0000');
+            }
+	    $.post( "http://10.0.0.165/text", $( "form" ).serialize() );
+	  });
+}
+showtemp();
+setInterval(function(){
+  showtemp();
+}, 180000);
+</script>
+   </head>
+   <body>
+       <h3>Current Message:</h3>
+       <p></p>
+       <form action="http://10.0.0.165/text">
+           <input type="text" name="message" id='message'>
+           <select name="colorstyle">
+               <option value="0">One Color (set below)</option>
+               <option value="1">Random</option>
+               <option value="2">Cycle</option>
+           </select><br>
+           <label for="repeat">Repeat x times (0 for infinite):</label><input type="number" name="repeat" value="0"><br>
+           <label for="colour">Colour: </label><input type="color" id='colour' name="colour" value="#FF8833"><br>
+           <label for="speed">Fast</label>
+<input type="range" name="speed" min="10" max="200" value="20">
+<label for="speed">Slow</label><br>
+           <input type="submit">
+       </form>
+   </body></html>
