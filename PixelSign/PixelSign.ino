@@ -71,6 +71,12 @@ uint32_t t_color = colors[0];
 int x = matrix.width();
 int pass = 0;
 int prev_frame = millis();
+struct point {
+  int x;
+  int y;
+};
+point snow[10] = {0};
+
 func doMatrixUpdate;
 
 ESP8266WebServer server ( 80 );
@@ -115,6 +121,9 @@ void doTextUpdate() {
       if (style == rando) matrix.setTextColor(colors[pass % 3]);
       if (++pass >= repeat_times && repeat_times > 0) {
         strcpy(message, "\0");
+        doBlankScreen();
+        doMatrixUpdate = doXmasUpdate;
+        pass = 0;
       }
     }
   }
@@ -163,13 +172,61 @@ void doImageUpdate() {
       }
       matrix.show();
     } else if (pass > repeat_times && repeat_times != 0) {
-        matrix.fillScreen(0);
-        matrix.show();
+        doBlankScreen();
+        doMatrixUpdate = doXmasUpdate;
+        pass = 0;
     }
     prev_frame = millis();    
     pass++;
   }
 }
+
+void doXmasUpdate() {
+  if (pass == 0) {
+    cycle_idx = 0;
+    for (int i = 0; i < 10; i++) {
+      snow[i].x = i;
+      snow[i].y = random(10);
+    }
+    frame_delay = 75;
+    x = matrix.width();
+  }
+
+  int curtime = millis();
+  if (curtime > prev_frame + frame_delay) {
+    matrix.fillScreen(0);
+    if (++cycle_idx % 2 == 0) {  
+      for (int i = 0; i < 10; i++) {  
+        snow[i].y += 1;
+        if (snow[i].y > 10) {
+          snow[i].x = random(10);
+          snow[i].y = 0;
+        }
+      }
+    }
+    for (int i = 0; i < 10; i++) {
+      matrix.drawPixel(snow[i].x, snow[i].y, matrix.Color(255,255,255));
+    }
+    
+    matrix.setCursor(x, 2);
+    if(--x < (message_length * -6) || pass == 0) {
+      x = matrix.width();
+      pass++;
+    }
+    if (pass % 2 == 0) {
+      matrix.setTextColor(matrix.Color(255,0,0));
+      matrix.print("Merry");
+      message_length = 6;
+    } else {
+      matrix.setTextColor(matrix.Color(0,255,0));
+      matrix.print("Xmas!");
+      message_length = 5;
+    }
+    matrix.show();
+    prev_frame = millis();
+  }
+}
+      
 
 void handleRoot() {
 	digitalWrite ( led, 1 );
@@ -258,7 +315,9 @@ void setup ( void ) {
   matrix.setBrightness(80);
   matrix.setTextColor(colors[0]);
   message_length = snprintf(message, message_length, "%i.%i.%i.%i\0", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
-  doMatrixUpdate = doTextUpdate;
+  doMatrixUpdate = doXmasUpdate;
+
+  randomSeed(millis());
 }
 
 void loop ( void ) {
