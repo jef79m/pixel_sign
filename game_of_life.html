@@ -1,0 +1,243 @@
+<html>
+<body>
+<canvas id='previewCanvas' width=400 height=400 style="width: 400px;height: 400px;"></canvas>
+<canvas id='signCanvas' width=10 height=10></canvas>
+<img id='image'>
+<br>
+<div>
+<label>Speed</label><input type="number" value="400" name="animation_speed">
+</div>
+<label>Block Colour</label><input type="color" value="#ffffff" name="block_colour">
+<label>Background</label><input type="color" value="#000000" name="bg_colour">
+<button id="goButton">Go</button>
+<button id="sendButton">Send</button>
+<button id="stepButton">Step</button>
+<script   src="https://code.jquery.com/jquery-1.12.4.js" integrity="sha256-Qw82+bXyGq6MydymqBxNPYTaUXXq7c8v3CwiYwLLNXU="   crossorigin="anonymous"></script>
+<script>
+
+
+</script>
+<script>
+
+// Make the canvas render text
+var animate = false;
+
+$('input').on('input', function() {
+    refresh_canvases()
+});
+
+$('#stepButton').on('click', function() {
+    step_game_of_life();
+});
+
+$('#goButton').on('click', function() {
+    animate = (! animate);
+    if (animate) {
+        var speed = $('input[name=animation_speed]').val();
+        animate_game_of_life(speed, animate_game_of_life);
+    }
+});
+
+$('#sendButton').on('click', function() {
+    animate = (! animate);
+    if (animate) {
+        var speed = $('input[name=animation_speed]').val();
+        send_game_of_life(speed, send_game_of_life);
+    }
+});
+
+get_grid_array = function(default_value) {
+    default_value = default_value === undefined ? '#000000' : default_value;
+    var grid = Array(10);
+    grid.fill(undefined);
+    for (var i = 0; i < grid.length; ++i) {
+        grid[i] = Array(10);
+        grid[i].fill(default_value);
+    }
+    return grid;
+}
+
+var previewElement = $('#previewCanvas')[0];
+var signElement = $('#signCanvas')[0];
+var previewContext = previewElement.getContext('2d');
+var signContext = signElement.getContext('2d');
+var signGrid = get_grid_array($('[name=bg_colour]').val());
+var stepGrid = get_grid_array();
+
+refresh_canvases = function() {
+    refresh_canvas(previewContext);
+    refresh_canvas(signContext);
+}
+
+$('#previewCanvas').on('click', function(event) {
+    var block_size = previewContext.canvas.height / 10;
+    var grid_column = Math.floor(event.offsetX / block_size)
+    var grid_row = Math.floor(event.offsetY / block_size)
+    var colour = $('[name=bg_colour]').val();
+    if (signGrid[grid_row][grid_column] === colour) {
+        colour = $('[name=block_colour]').val();
+    }
+    signGrid[grid_row][grid_column] = colour;
+    refresh_canvases();
+});
+
+refresh_canvas = function(tCtx) {
+
+    tCtx.clearRect(0, 0, tCtx.canvas.width, tCtx.canvas.height);
+
+    var block_size = tCtx.canvas.height / 10;
+    for (var row in signGrid) {
+        for (var col in signGrid[row]) {
+            tCtx.fillStyle = signGrid[row][col];
+            tCtx.fillRect(col * block_size, row*block_size,
+                          block_size, block_size);
+        }
+    }
+    
+    //tCtx.font = $("[name='font_size']").val() + "px courier";
+    //var fontWidth = tCtx.measureText($('#text').val()).width
+    //tCtx.canvas.width = fontWidth + 10;
+    //tCtx.fillStyle = $('[name=bg_colour]').val();
+}
+
+step_game_of_life = function() {
+    alive_colour = $('[name=block_colour]').val();
+    dead_colour = $('[name=bg_colour]').val();
+    for (row in signGrid) {
+        for (col in signGrid[row]) {
+            row = parseInt(row, 10);
+            col = parseInt(col, 10);
+            var living_neighbours = neighbour_count(
+                signGrid, row, col, alive_colour);
+            if (signGrid[row][col] == alive_colour) {
+                if (living_neighbours < 2 || living_neighbours > 3) {
+                    stepGrid[row][col] = dead_colour;
+                }
+                else {
+                    stepGrid[row][col] = alive_colour;
+                }
+            }
+            else {
+                if (living_neighbours == 3) {
+                    stepGrid[row][col] = alive_colour;
+                }
+                else {
+                    stepGrid[row][col] = dead_colour;
+                }
+            }
+        }
+    }
+    var grid_backup = signGrid;
+    signGrid = stepGrid;
+    stepGrid = grid_backup;
+    refresh_canvases();
+}
+
+colour_count = function(grid, row, col, colour) {
+    if (row < 0) {
+        row = grid.length + row;
+    }
+    else {
+        row = row % grid.length
+    }
+    if (col < 0) {
+        col = grid[row].length + col
+    }
+    else {
+        col = col % grid.length
+    }
+    return (grid[row][col] == colour) ? 1 : 0;
+}
+
+neighbour_count = function(grid, row, col, alive_colour) {
+    var alive_count = 0;
+    alive_count += colour_count(grid, row + 1, col - 1, alive_colour);
+    alive_count += colour_count(grid, row + 1, col, alive_colour);
+    alive_count += colour_count(grid, row + 1, col + 1, alive_colour);
+    alive_count += colour_count(grid, row, col - 1, alive_colour)
+    alive_count += colour_count(grid, row, col+ 1, alive_colour);
+    alive_count += colour_count(grid, row - 1, col - 1, alive_colour);
+    alive_count += colour_count(grid, row - 1, col, alive_colour);
+    alive_count += colour_count(grid, row - 1, col + 1, alive_colour);
+    return alive_count;
+}
+
+
+grid_to_sign_array = function(grid) {
+    signArray = Array(100);
+    signArray.fill(undefined);
+    for (var row = 0; row < grid.length; ++row) {
+        for (var col = 0; col < grid[row].length; ++col) {
+            if (row % 2 === 0) {
+                var ref_col = col;
+            }
+            else {
+                var ref_col = grid[row].length - 1 - col;
+            }
+            var ref_row = grid.length - 1 - row;
+            signArray[ref_row * grid.length + ref_col] = grid[row][col];
+        }
+    }
+    return signArray;
+}
+
+
+int_to_colour = function(val) {
+    var code = val.toString(16);
+    while (code.length < 2) {
+        code = "0" + code;
+    }
+    return code;
+}
+
+send_sign_array = function(data, duration) {
+    duration = duration === undefined ? 10: duration;
+    return $.ajax({
+        url: "http://10.0.0.165/image",
+        dataType: 'json',
+        data: {"data": JSON.stringify(data),
+               "duration": duration}
+    });
+};
+
+send_game_of_life = function(speed) {
+    send_sign_array(grid_to_sign_array(signGrid)).always(function() {
+        animate_game_of_life(speed, send_game_of_life);
+    });
+}
+
+animate_game_of_life = function(speed, callback) {
+    if (animate) {
+        step_game_of_life();
+        setTimeout(() => callback(speed, callback), speed);
+    }
+}
+
+// Not used here but might be useful to someone
+canvas_to_grid = function(grid, x, y) {
+    x = x === undefined ? 0: x;
+    y = y === undefined ? 0: y;
+    var canvas2d = grid;
+    var canv_data = canvas2d.getImageData(x, y, 10, 10).data;
+    var grid = get_grid_array();
+    for (var row = 0; row < grid.length; ++row) {
+        for (var col = 0; col < grid[row].length; ++col) {
+            var data_ref = (row * 10 + col) * 4
+            var colour = ('#'
+                          + int_to_colour(canv_data[data_ref])
+                          + int_to_colour(canv_data[data_ref + 1])
+                          + int_to_colour(canv_data[data_ref + 2]));
+            grid[row][col] = colour;
+            //TODO: Fix the colour so it picks one of our predefined
+            //      colours
+            
+        }
+    }
+    return grid;
+}
+
+refresh_canvases();
+
+</script>
+</body>
+</html>
