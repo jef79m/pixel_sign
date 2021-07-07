@@ -55,8 +55,8 @@ const uint16_t colors[] = {
   
 
 // config for wifi 
-const char *ssid = "";
-const char *password = "";
+const char *ssid = "<yourSSID>";
+const char *password = "<yourWifiPassword>";
 // 60:01:94:06:61:a3 
 
 char message[] = "                                                                                                                       ";

@@ -193,7 +193,7 @@ int_to_colour = function(val) {
 send_sign_array = function(data, duration) {
     duration = duration === undefined ? 10: duration;
     return $.ajax({
-        url: "http://10.0.0.165/image",
+        url: "http://pixelsign.home.lan/image",
         dataType: 'json',
         data: {"data": JSON.stringify(data),
                "duration": duration}
